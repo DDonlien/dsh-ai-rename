@@ -1,0 +1,15 @@
+# dsh-plugin-title-suggest — model-generated title suggestions for the session
+# rename dialog.
+#
+# Inserts one plugin row. The plugin contributes:
+#   - a host route   GET|POST /plugin/title-suggest  (loopback-guarded)
+#   - a browser-side suggestion row under the rename input
+#   - a Settings section ("Title suggestion")
+#
+# The host route generates the summary with the session's own model, reusing
+# the same `ctx.llm` path the built-in session-title provider streams through.
+# It never calls sessionTitle.rename(): a rename pins the session, so the
+# suggestion stays a click-to-apply candidate instead.
+- insert:
+    - id: title-suggest
+      name: dsh-plugin-title-suggest
