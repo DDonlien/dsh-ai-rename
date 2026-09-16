@@ -112,6 +112,23 @@ locale this revision has never seen, and the failure direction is deliberate: th
 suggestion row under a same-shaped dialog, never a crash and never a write into a field the user
 did not ask about.
 
+## How the row finds the session
+
+Opening a session row's **Rename** menu does *not* open that session, so the store's current
+selection is not the rename target — it is just whatever session happens to be open. Reading
+`current` alone would silently suggest a title for the wrong conversation.
+
+So the row reads the target out of the dialog's own React state: the workspace browser keeps it as
+`{ sessionId, currentTitle }` in a `useState`, reachable by walking up the fiber chain from the
+dialog input. Requiring **both** keys is what makes the probe specific — the workspace rename
+dialog, which is otherwise indistinguishable, stores `{ workspaceId, currentTitle }`.
+
+If the fiber shape ever moves, the row falls back to `ctx.sessions.list.getSnapshot().current` —
+the same projection `useSessions` and `dsh-client-ui-conversation` read — and finally to
+`no session selected`. Note that `getListSnapshot()` is a `SessionManager` method and **not** part
+of the `sessions` service surface; calling it on the service returns `undefined` through optional
+chaining, which is exactly how a working plugin ends up reporting `no session selected` forever.
+
 ## Security
 
 The route is owned as an exact path outside the `/api` prefix, so `dsh-client-connection` does not
@@ -139,6 +156,9 @@ lib/                build output (not edited by hand)
 
 - **DOM injection is coupled to dialog shape.** If DSH restructures the rename dialog, the row
   stops appearing. It degrades to "no row" rather than misbehaving.
+- **The rename target is read through React internals** (`__reactFiber$…` → hook chain). If that
+  state is renamed or moved, the probe returns nothing and the row falls back to the current
+  session, which can be a different one; the row's label is the only hint.
 - **Settings live in `localStorage`**, not host state, so they are per-browser rather than
   per-profile.
 - **The host half has no harness runtime dependencies** and deliberately reconstructs the small
